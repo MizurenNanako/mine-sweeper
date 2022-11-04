@@ -1,8 +1,6 @@
-#include "table.h"
+#include "ctable.h"
 #include <stdlib.h>
 #include <string.h>
-
-#include "util.h"
 
 struct ctable
 {
@@ -21,10 +19,10 @@ struct ctable *ctable_create(int w_, int h_)
     return p;
 }
 
-void ctable_delete(struct ctable *p)
+void ctable_delete(struct ctable *this)
 {
-    free(p->data);
-    free(p);
+    free(this->data);
+    free(this);
 }
 
 char ctable_get(struct ctable *this, uint x, uint y)
