@@ -18,7 +18,8 @@
 #define ANSI_SCREEN_HEIGHT 24
 #define ANSI_SCREEN_WIDTH 80
 #define ANSI_BUFSIZE (ANSI_SCREEN_HEIGHT * ANSI_SCREEN_WIDTH)
-#define GRAP 5
+// Width of Info Panel, it's minimal value is 8
+#define GRAP 8
 
 /**
  * @brief buildin_buf :
@@ -36,7 +37,8 @@ struct printer
     char *frame_buf[2];
     u8 frame_current;
     u8 use_buildin;
-    char *line_buf; // length always be screen_w+1
+    char *line_buf;      // length always be screen_w+1
+    game_info_t *p_info; // pointer to game ginfo, not owning.
 };
 
 struct printer *printer_create()
@@ -47,6 +49,7 @@ struct printer *printer_create()
     p->frame_buf[0] = NULL;
     p->frame_buf[1] = NULL;
     p->line_buf = NULL;
+    p->p_info = NULL;
 }
 
 void printer_delete(struct printer *this)
@@ -60,9 +63,15 @@ void printer_delete(struct printer *this)
     free(this);
 }
 
-void _print_border(struct printer *this);
+// private func decl begin
 
-void printer_init(struct printer *this, uint w_, uint h_)
+void _render_border(struct printer *this);
+void _render_info(struct printer *this);
+
+// private func decl end
+
+void printer_init(struct printer *this,
+                  uint w_, uint h_, game_info_t *pinfo_)
 {
     if (this->line_buf && w_ != this->screen_w)
     {
@@ -94,11 +103,14 @@ void printer_init(struct printer *this, uint w_, uint h_)
     this->frame_current = 0;
     if (!this->line_buf)
         this->line_buf = malloc(this->screen_w + 1);
+    check_ptr(pinfo_);
+    this->p_info = pinfo_;
 }
 
 void printer_render(struct printer *this)
 {
-    _print_border(this);
+    _render_border(this);
+    _render_info(this);
     this->frame_current = this->frame_current == 0;
 }
 
@@ -119,7 +131,7 @@ void printer_show(struct printer *this, FILE *stream)
 
 // private func impl
 
-void _print_border(struct printer *this)
+void _render_border(struct printer *this)
 {
     register char *frm = this->frame_buf[this->frame_current == 0];
     register uint wth = this->screen_w;
@@ -141,4 +153,32 @@ void _print_border(struct printer *this)
 
     // bottom border
     memset(frm, '-', wth);
+}
+
+void _render_info(struct printer *this)
+{
+    register char *frm = this->frame_buf[this->frame_current == 0];
+    register uint wth = this->screen_w;
+    char tmp[GRAP + 1] = {[0 ... GRAP] = 0};
+    unsigned tmplen = 0;
+    // start pos: wth - (GRAP + 1)
+    frm += wth * 2 - (GRAP + 1);
+
+#define write_literal(str)             \
+    memcpy(frm, str, sizeof(str) - 1); \
+    frm += wth;
+#define write_int(val)                                       \
+    tmplen = snprintf(tmp, GRAP, " % *d ", GRAP - 2, (val)); \
+    memcpy(frm, tmp, tmplen - 1);                            \
+    frm += wth;
+
+    // Write score
+    write_literal(" SCORE:");
+    write_int(this->p_info->SCORE);
+    write_literal(" MINES:");
+    write_int(this->p_info->MINE);
+    write_literal(" MARK:");
+    write_int(this->p_info->MARK);
+    write_literal(" REMAIN:");
+    write_int(this->p_info->REMAIN);
 }

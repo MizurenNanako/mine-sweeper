@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "err.h": "c"
+        "err.h": "c",
+        "sstream": "c"
     },
     "makefile.launchConfigurations": [
         {
