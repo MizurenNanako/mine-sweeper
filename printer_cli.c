@@ -1,7 +1,7 @@
 #include "printer_cli.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <ncurses.h>
 
 /**
  * Frame Buffer :
@@ -37,6 +37,8 @@ struct printer
     char *frame_buf[2];
     u8 frame_current;
     u8 use_buildin;
+    u8 border_rendered[2];
+    u8 label_rendered[2];
     char *line_buf;      // length always be screen_w+1
     game_info_t *p_info; // pointer to game ginfo, not owning.
 };
@@ -48,6 +50,8 @@ struct printer *printer_create()
     p->screen_w = 0;
     p->frame_buf[0] = NULL;
     p->frame_buf[1] = NULL;
+    p->border_rendered[0] = 0;
+    p->border_rendered[1] = 0;
     p->line_buf = NULL;
     p->p_info = NULL;
 }
@@ -73,11 +77,6 @@ void _render_info(struct printer *this);
 void printer_init(struct printer *this,
                   uint w_, uint h_, game_info_t *pinfo_)
 {
-    if (this->line_buf && w_ != this->screen_w)
-    {
-        free(this->line_buf);
-        this->line_buf = NULL;
-    }
     if (!this->use_buildin)
         for (uint i = 0; i < 2; ++i)
             if (this->frame_buf[i])
@@ -101,39 +100,50 @@ void printer_init(struct printer *this,
         this->screen_h = h_;
     }
     this->frame_current = 0;
-    if (!this->line_buf)
-        this->line_buf = malloc(this->screen_w + 1);
     check_ptr(pinfo_);
     this->p_info = pinfo_;
+    printer_render(this);
+    printer_render(this);
 }
 
 void printer_render(struct printer *this)
 {
-    _render_border(this);
+    if (!this->border_rendered[!this->frame_current])
+        _render_border(this);
     _render_info(this);
-    this->frame_current = this->frame_current == 0;
+    this->frame_current = !this->frame_current;
 }
 
-void printer_show(struct printer *this, FILE *stream)
+void printer_show(struct printer *this)
 {
     register char *frm = this->frame_buf[this->frame_current];
     uint wth = this->screen_w;
-    char *lbuf = this->line_buf;
-    for (uint i = 0; i < this->screen_h; ++i)
+    move(0, 0);
+    addnstr(frm, wth);
+    for (uint i = 1; i < this->screen_h; ++i)
     {
-        memcpy(lbuf, frm + i * wth, wth);
-        lbuf[wth] = '\n';
-        lbuf[wth + 1] = 0;
-        fprintf(stream, "%s", lbuf);
+        addch('\n');
+        addnstr(frm + i * wth, wth);
     }
-    fflush(stream);
+    move(this->p_info->cursor_pos.y,
+         this->p_info->cursor_pos.x);
+    refresh();
+}
+
+pos_t printer_get_cursor_range(struct printer *this)
+{
+    pos_t r = {
+        .x = this->screen_w - (GRAP + 3),
+        .y = this->screen_h - 2,
+    };
+    return r;
 }
 
 // private func impl
 
 void _render_border(struct printer *this)
 {
-    register char *frm = this->frame_buf[this->frame_current == 0];
+    register char *frm = this->frame_buf[!this->frame_current];
     register uint wth = this->screen_w;
 
     // upper border
@@ -153,6 +163,7 @@ void _render_border(struct printer *this)
 
     // bottom border
     memset(frm, '-', wth);
+    this->border_rendered[!this->frame_current] = 1;
 }
 
 void _render_info(struct printer *this)
@@ -173,12 +184,25 @@ void _render_info(struct printer *this)
     frm += wth;
 
     // Write score
-    write_literal(" SCORE:");
+    if (!this->label_rendered[!this->frame_current])
+    {
+        write_literal(" SCORE:");
+        write_int(this->p_info->SCORE);
+        write_literal(" MINES:");
+        write_int(this->p_info->MINE);
+        write_literal(" MARK:");
+        write_int(this->p_info->MARK);
+        write_literal(" REMAIN:");
+        write_int(this->p_info->REMAIN);
+        this->label_rendered[!this->frame_current] = 1;
+        return;
+    }
+    frm += wth;
     write_int(this->p_info->SCORE);
-    write_literal(" MINES:");
+    frm += wth;
     write_int(this->p_info->MINE);
-    write_literal(" MARK:");
+    frm += wth;
     write_int(this->p_info->MARK);
-    write_literal(" REMAIN:");
+    frm += wth;
     write_int(this->p_info->REMAIN);
 }

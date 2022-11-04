@@ -26,7 +26,13 @@ struct game *game_create()
     p->game_table = NULL;
     p->mask_table = NULL;
     game_info_t tmp =
-        {.SCORE = 0, .MARK = 0, .MINE = 0, .REMAIN = 0};
+        {
+            .SCORE = 0,
+            .MARK = 0,
+            .MINE = 0,
+            .REMAIN = 0,
+            .cursor_pos = {.x = 0, .y = 0},
+        };
     p->ginfo = tmp;
     return p;
 }

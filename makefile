@@ -1,12 +1,12 @@
 CC			= gcc
 CFLAGS  	= -O2
-LDFLAGS    	= -lm
+LDFLAGS    	= -lm -lcurses
+OBJS		= main.o printer_cli.o input.o
 
 debug : CFLAGS = -g
 debug : main
 
-main : OBJS = main.o printer_cli.o
-main : main.o printer_cli.o
+main : $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 (*.o) : $(*.c)
@@ -14,3 +14,4 @@ main : main.o printer_cli.o
 
 clean :
 	rm *.o
+	rm main
